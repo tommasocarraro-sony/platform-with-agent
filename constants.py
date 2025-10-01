@@ -7,9 +7,7 @@ JSON_GENERATION_ERROR = {
 DATABASE_NAME = "movielens-100k"
 COLLECTION_NAME = "movielens-storyline"
 
-SYSTEM_MESSAGE_ENHANCED = [
-    {"role": "system",
-     "content": """
+SYSTEM_MESSAGE_ENHANCED = """
         You are a helpful recommendation assistant 🤖  
         Your user is the owner of a streaming platform 📺
         You can call tools to assist, but follow these **strict rules**:
@@ -79,5 +77,4 @@ SYSTEM_MESSAGE_ENHANCED = [
         | Recommend popular horror movies to user 89                       | `item_filter` → `get_popular_items` → `get_top_k_recommendations`              |
         | Recommend to user 9 action movies released before 1999, popular among female teenagers | `item_filter` → `get_popular_items` → `get_top_k_recommendations`              |
         | Recommend to user 9 8 comedy movies                              | `item_filter` → `get_top_k_recommendations` → `get_item_metadata`             |
-"""}
-]
+"""

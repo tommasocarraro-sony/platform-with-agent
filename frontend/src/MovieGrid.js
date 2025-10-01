@@ -12,9 +12,19 @@ export default function MovieGrid() {
   const [loading, setLoading] = useState(true);
   const [carouselsLoading, setCarouselsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
-  const { recommendedMovieIds } = useMovieContext();
+  const { recommendedMovieIds, setRecommendedMovieIds } = useMovieContext(); // Added setter
   const { user, logout } = useAuth();
   const carouselRefs = useRef({});
+
+  // Enhanced logout function that clears recommendations
+  const handleLogout = () => {
+    // Clear recommendation state
+    setRecommendedMovieIds([]);
+    // Reset to all movies tab
+    setActiveTab('all');
+    // Call the original logout
+    logout();
+  };
 
   // Load carousels and all movies
   useEffect(() => {
@@ -72,6 +82,12 @@ export default function MovieGrid() {
     }
   }, [recommendedMovieIds]);
 
+  // Reset to 'all' tab when user changes (on logout/login)
+  useEffect(() => {
+    setActiveTab('all');
+    setRecommendedMovieIds([]); // Clear any existing recommendations
+  }, [user, setRecommendedMovieIds]);
+
   // Carousel scroll functions
   const scrollCarousel = (carouselKey, direction) => {
     const container = carouselRefs.current[carouselKey];
@@ -127,7 +143,7 @@ export default function MovieGrid() {
             <p className="text-gray-400">Welcome, {user.name}</p>
           </div>
           <button
-            onClick={logout}
+            onClick={handleLogout} // Use the enhanced logout function
             className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
           >
             <LogOut size={18} />
@@ -247,7 +263,7 @@ export default function MovieGrid() {
               </div>
 
               {/* Movie Grid */}
-              <div className="grid grid-cols-5 gap-6">
+              <div className="grid grid-cols-9">
                 {filteredMovies.map((m) => (
                   <MovieCard
                     key={m.item_id || m.movie_id}
@@ -305,8 +321,27 @@ export default function MovieGrid() {
                     <p><b>Storyline:</b> {selected.storyline || selected.description || "No description available"}</p>
                     <p><b>Rating:</b> ⭐ {selected.imdb_rating || "N/A"}</p>
                     <p><b>Director:</b> {selected.director || "Unknown"}</p>
+                    <p><b>Actors:</b> {selected.actors || "Unknown"}</p>
+                    <p><b>Producer:</b> {selected.producer || "Unknown"}</p>
                     <p><b>Genres:</b> {selected.genres || "Unknown"}</p>
-                    <p><b>Year:</b> {selected.year || "Unknown"}</p>
+                    <p><b>Country:</b> {selected.country || "Unknown"}</p>
+                    <p><b>Year:</b> {selected.release_date || "Unknown"}</p>
+                    <p><b>Duration:</b> {selected.duration || "Unknown"}</p>
+                    <p>
+                      <b>Link to movie:</b>{" "}
+                      {selected.movie_url ? (
+                        <a
+                          href={selected.movie_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 underline"
+                        >
+                          IMDb
+                        </a>
+                      ) : (
+                        "Unknown"
+                      )}
+                    </p>
                     {selected.user_rating && (
                       <p><b>Your Rating:</b> ⭐ {selected.user_rating}/10</p>
                     )}

@@ -1,9 +1,12 @@
 import os
+
+from starlette import status
+
 from backend.recsys.recbole_env import recbole_env
 from fastapi import FastAPI, Query
 from sqlalchemy import create_engine, text
 from fastapi.middleware.cors import CORSMiddleware
-from backend.agent.agent import create_agent, stream_graph_updates
+from backend.agent.agent import Agent, create_agent_env
 from backend.agent.tools.get_top_k_recommendations import recommend_given_items
 from dotenv import load_dotenv
 from backend.agent.tools.utils import execute_sql_query
@@ -14,8 +17,8 @@ DATABASE_URL = "sqlite:///backend/db/movielens-100k.db"
 # Connect to SQLite
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 
-# create the agent
-agent = create_agent()
+# create the agent environment
+create_agent_env()
 
 app = FastAPI()
 
@@ -57,7 +60,7 @@ def generate_carousels(user_id: int):
 
     return carousels
 
-
+agent = Agent()
 
 @app.get("/carousels")
 def get_carousels(user_id: int = Query(...)):
@@ -103,6 +106,14 @@ def get_movie(movie_id: int):
         row = result.fetchone()
         return dict(row._mapping) if row else {}
 
+
+@app.post("/initialize", status_code=status.HTTP_204_NO_CONTENT)
+def initialize():
+    """
+    Initialize the agent. This is useful to reinitialize the chat history at every logout.
+    """
+    agent.init_agent()
+
 @app.post("/recommend")
 def recommend(query: str = Query(...)):
-    return stream_graph_updates(agent, query)
+    return agent.invoke_agent(query)

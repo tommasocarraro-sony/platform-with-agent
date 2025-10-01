@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useAuth } from './AuthContext';
+import axios from 'axios';
 
 export default function LoginDialog() {
   const [userId, setUserId] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
 
     const id = parseInt(userId);
@@ -20,8 +22,21 @@ export default function LoginDialog() {
       return;
     }
 
+    setLoading(true);
     setError('');
-    login(id);
+
+    try {
+      // Initialize the agent before logging in
+      await axios.post('http://localhost:8000/initialize');
+
+      // If initialization succeeds, proceed with login
+      login(id);
+    } catch (error) {
+      console.error('Initialization failed:', error);
+      setError('Failed to initialize the system. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -47,6 +62,7 @@ export default function LoginDialog() {
               min="1"
               max="943"
               required
+              disabled={loading}
             />
           </div>
 
@@ -58,9 +74,10 @@ export default function LoginDialog() {
 
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors font-medium"
+            disabled={loading}
+            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors font-medium disabled:bg-blue-400 disabled:cursor-not-allowed"
           >
-            Enter Movie Platform
+            {loading ? 'Initializing...' : 'Enter Movie Platform'}
           </button>
         </form>
 
