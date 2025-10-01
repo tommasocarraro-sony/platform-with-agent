@@ -1,0 +1,12 @@
+recbole
+numpy<2
+kmeans-pytorch
+langchain
+langchain-openai
+langgraph
+sentence_transformers
+qdrant_client
+docker
+ray
+ray[tune]
+rapidfuzz
