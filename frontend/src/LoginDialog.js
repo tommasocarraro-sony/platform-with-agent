@@ -15,8 +15,8 @@ export default function LoginDialog() {
       return;
     }
 
-    if (id > 1000) { // Adjust based on your user range
-      setError('User ID not found. Please try a different ID.');
+    if (id < 1 || id > 943) {
+      setError('User ID must be between 1 and 943. Please try a different ID.');
       return;
     }
 
@@ -45,6 +45,7 @@ export default function LoginDialog() {
               placeholder="Enter your user ID (e.g., 8)"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
               min="1"
+              max="943"
               required
             />
           </div>
@@ -64,7 +65,7 @@ export default function LoginDialog() {
         </form>
 
         <div className="mt-6 text-center text-sm text-gray-500">
-          <p>Don't have a user ID? Try numbers 1-1000</p>
+          <p>Don't have a user ID? Try numbers 1-943</p>
         </div>
       </div>
     </div>
