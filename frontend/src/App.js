@@ -1,16 +1,31 @@
+import { AuthProvider, useAuth } from './AuthContext';
 import { MovieProvider } from './MovieContext';
+import LoginDialog from './LoginDialog';
 import MovieGrid from "./MovieGrid";
 import AgentChat from "./AgentChat";
 
+function AppContent() {
+  const { isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return <LoginDialog />;
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-900">
+      <MovieGrid />
+      <AgentChat />
+    </div>
+  );
+}
+
 function App() {
   return (
-    <MovieProvider>
-        <div className="bg-gray-900 min-h-screen text-white">
-          <h1 className="text-3xl font-bold p-6">MovieLens App</h1>
-          <MovieGrid />
-            <AgentChat/>
-        </div>
-    </MovieProvider>
+    <AuthProvider>
+      <MovieProvider>
+        <AppContent />
+      </MovieProvider>
+    </AuthProvider>
   );
 }
 

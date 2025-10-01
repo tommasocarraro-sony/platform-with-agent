@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { Bot, X, Mic, Square } from "lucide-react";
 import { useMovieContext } from "./MovieContext";
+import { useAuth } from './AuthContext';
 
 export default function AgentChat() {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([
@@ -62,15 +64,22 @@ export default function AgentChat() {
   };
 
   // Wrap handleSend in useCallback to avoid infinite re-renders
-  const handleSend = useCallback(async () => {
-    if (!input.trim() || loading) return;
+  const handleSend = useCallback(async (textToSend = null) => {
+    const messageText = textToSend || input;
+
+    if (!messageText.trim() || loading) return;
+
+    // Add user context to the query
+    const queryWithUser = user ? `user ${user.id}: ${messageText}` : messageText;
 
     // Add user message
-    const userMessage = { id: Date.now(), text: input, type: "user" };
+    const userMessage = { id: Date.now(), text: messageText, type: "user" };
     setMessages(prev => [...prev, userMessage]);
 
-    const currentInput = input;
-    setInput("");
+    const currentInput = queryWithUser;
+    if (!textToSend) {
+      setInput("");
+    }
     setLoading(true);
 
     try {
@@ -111,7 +120,7 @@ export default function AgentChat() {
     } finally {
       setLoading(false);
     }
-  }, [input, loading, setRecommendedMovieIds]);
+  }, [input, loading, setRecommendedMovieIds, user]);
 
   // Speech recognition setup
   useEffect(() => {
@@ -148,9 +157,12 @@ export default function AgentChat() {
 
     recognition.onend = () => {
       setListening(false);
-      // Auto-send when recognition ends if there's text
-      if (input.trim() && !loading) {
-        handleSend();
+      // Get the final transcript and send it immediately
+      const finalInput = input.trim();
+      if (finalInput && !loading) {
+        console.log("Auto-sending message:", finalInput);
+        handleSend(finalInput);
+        setInput(""); // Clear input after sending
       }
     };
 
@@ -160,7 +172,7 @@ export default function AgentChat() {
     };
 
     window.speechRecognition = recognition;
-  }, [input, loading, handleSend]); // Added handleSend to dependencies
+  }, [input, loading, handleSend]);
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter') {
@@ -171,6 +183,7 @@ export default function AgentChat() {
   // Speech recognition controls
   const startListening = () => {
     if (window.speechRecognition && !listening) {
+      setInput(""); // Clear input when starting to listen
       window.speechRecognition.start();
     }
   };
@@ -220,6 +233,11 @@ export default function AgentChat() {
             <div className="flex items-center gap-2">
               <Bot size={20} />
               <span className="font-semibold">MovieLens Agent</span>
+              {user && (
+                <span className="text-xs bg-blue-500 px-2 py-1 rounded-full">
+                  User {user.id}
+                </span>
+              )}
             </div>
             <button onClick={() => setOpen(false)}>
               <X size={20} />
@@ -301,7 +319,7 @@ export default function AgentChat() {
 
             {/* Send Button */}
             <button
-              onClick={handleSend}
+              onClick={() => handleSend()}
               disabled={loading || !input.trim()}
               className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >

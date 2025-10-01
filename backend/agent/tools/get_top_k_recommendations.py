@@ -8,6 +8,7 @@ from constants import JSON_GENERATION_ERROR
 from pydantic import BaseModel, Field
 from typing import List, Union, Optional
 import os
+from backend.recsys.recbole_env import recbole_env
 
 
 class TopKRecommendationInput(BaseModel):
@@ -16,19 +17,6 @@ class TopKRecommendationInput(BaseModel):
     items: Optional[Union[List[int], str]] = Field(
         default=None,
         description="Item IDs (list) or path to a JSON file containing the item IDs."
-    )
-
-
-def create_recbole_environment(model_path):
-    """
-    This function creates a global RecBole environment that can be accessed by the functions that
-    process recommendation requests.
-
-    :param model_path: path to pre-trained recsys model
-    """
-    global config, model, dataset, train_data, valid_data, test_data
-    config, model, dataset, train_data, valid_data, test_data = load_data_and_model(
-        model_file=model_path
     )
 
 @tool(args_schema=TopKRecommendationInput)
@@ -43,8 +31,10 @@ def get_top_k_recommendations_tool(user: int, k: int = 5, items: Optional[Union[
     if user is None or k is None:
         return json.dumps(JSON_GENERATION_ERROR)
 
-    if 'config' not in globals():
-        create_recbole_environment(os.getenv("RECSYS_MODEL_PATH"))
+    if not recbole_env.is_initialized:
+        recbole_env.initialize(os.getenv("RECSYS_MODEL_PATH"))
+
+    _, _, dataset, _, _, _ = recbole_env.get_environment()
 
     uid_series = dataset.token2id(dataset.uid_field, [str(user)])
 
@@ -80,6 +70,7 @@ def recommend_full_catalog(user, k=5):
     :param k: number of items to be returned (first k positions in the ranking)
     :return: ranking (of item IDs) for the given user ID
     """
+    config, model, dataset, _, _, test_data = recbole_env.get_environment()
     topk_score, topk_iid_list = full_sort_topk(user, model, test_data, k=k,
                                                device=config['device'])
     return dataset.id2token(dataset.iid_field, topk_iid_list.cpu())[0]
@@ -94,6 +85,7 @@ def recommend_given_items(user, item_ids, k=5):
     :param k: number of items to be returned (first k positions in the ranking)
     :return: ranking (of item IDs) for the given user ID
     """
+    config, model, dataset, _, _, test_data = recbole_env.get_environment()
     all_scores = full_sort_scores(user, model, test_data, device=config['device'])
     item_ids = [str(i) for i in item_ids]
     satisfying_item_scores = all_scores[

@@ -46,9 +46,11 @@ SYSTEM_MESSAGE_ENHANCED = [
                - b. Call `get_item_metadata_tool` on both history and recommended items
                - c. Compare metadata (genres, actors, etc.) and explain with **content-based reasoning**
 
-            7. 📝 When listing recommended items, **ALWAYS** include the item ID, title, genres, and description in the output.
+            7. 📝 When listing recommended items, **ALWAYS** include the item ID, title, genres, and description in the output. 
+            
+            8. When listing recommended items, **ALWAYS** list them in the exact order as returned by the recommendation tool.
 
-            8. When listing recommended items after item filtering, you must understand which features are important to display.
+            9. When listing recommended items after item filtering, you must understand which features are important to display.
                - Example: if the user requests Tom Cruise movies, "actors" must be included in the output. Put **Tom Cruise**
                in bold to highlight it.
         
