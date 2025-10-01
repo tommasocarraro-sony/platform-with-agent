@@ -1,61 +1,69 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useMovieContext } from "./MovieContext";
 import { useAuth } from "./AuthContext";
-import { LogOut } from "lucide-react";
+import { LogOut, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function MovieGrid() {
   const [allMovies, setAllMovies] = useState([]);
+  const [carousels, setCarousels] = useState([]);
   const [filteredMovies, setFilteredMovies] = useState([]);
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [carouselsLoading, setCarouselsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
   const { recommendedMovieIds } = useMovieContext();
   const { user, logout } = useAuth();
+  const carouselRefs = useRef({});
 
-  // Load all movies on initial render
+  // Load carousels and all movies
   useEffect(() => {
-    const loadAllMovies = async () => {
+    const loadData = async () => {
       if (!user) return;
 
       setLoading(true);
+      setCarouselsLoading(true);
+
       try {
+        // Load carousels
+        const carouselsResponse = await axios.get(`http://127.0.0.1:8000/carousels?user_id=${user.id}`);
+        setCarousels(carouselsResponse.data);
+
+        // Load all movies
         const ids = Array.from({ length: 1682 }, (_, i) => i + 1);
         const query = ids.join(",");
-        const response = await axios.get(`http://127.0.0.1:8000/movies?ids=${query}&user_id=${user.id}`);
-        setAllMovies(response.data);
-        setFilteredMovies(response.data);
+        const moviesResponse = await axios.get(`http://127.0.0.1:8000/movies?ids=${query}&user_id=${user.id}`);
+        setAllMovies(moviesResponse.data);
+        setFilteredMovies(moviesResponse.data);
       } catch (err) {
-        console.error('Error loading movies:', err);
+        console.error('Error loading data:', err);
       } finally {
         setLoading(false);
+        setCarouselsLoading(false);
       }
     };
 
-    loadAllMovies();
+    loadData();
   }, [user]);
 
   // Update displayed movies when tab or recommendations change
-useEffect(() => {
-  if (activeTab === 'recommended' && recommendedMovieIds.length > 0) {
-    // Create a lookup object for quick movie access by ID
-    const movieLookup = {};
-    allMovies.forEach(movie => {
-      const movieId = parseInt(movie.item_id || movie.movie_id);
-      movieLookup[movieId] = movie;
-    });
+  useEffect(() => {
+    if (activeTab === 'recommended' && recommendedMovieIds.length > 0) {
+      const movieLookup = {};
+      allMovies.forEach(movie => {
+        const movieId = parseInt(movie.item_id || movie.movie_id);
+        movieLookup[movieId] = movie;
+      });
 
-    // Preserve the AI's recommended order by mapping through recommendedMovieIds
-    const recommendedMovies = recommendedMovieIds
-      .map(id => movieLookup[id])
-      .filter(movie => movie !== undefined);
+      const recommendedMovies = recommendedMovieIds
+        .map(id => movieLookup[id])
+        .filter(movie => movie !== undefined);
 
-    setFilteredMovies(recommendedMovies);
-  } else {
-    // Show all movies (you might want to keep them ordered by ID or title)
-    setFilteredMovies(allMovies);
-  }
-}, [activeTab, recommendedMovieIds, allMovies]);
+      setFilteredMovies(recommendedMovies);
+    } else {
+      setFilteredMovies(allMovies);
+    }
+  }, [activeTab, recommendedMovieIds, allMovies]);
 
   // Auto-switch to recommendations tab when new recommendations arrive
   useEffect(() => {
@@ -64,8 +72,41 @@ useEffect(() => {
     }
   }, [recommendedMovieIds]);
 
+  // Carousel scroll functions
+  const scrollCarousel = (carouselKey, direction) => {
+    const container = carouselRefs.current[carouselKey];
+    if (container) {
+      const scrollAmount = 400;
+      container.scrollLeft += direction * scrollAmount;
+    }
+  };
+
+  const MovieCard = ({ movie, showBadge = false, badgeText = "Recommended", badgeColor = "green" }) => (
+    <div
+      onClick={() => setSelected(movie)}
+      className="cursor-pointer bg-gray-800 rounded-lg shadow-lg overflow-hidden hover:scale-105 transition-transform duration-200 flex-shrink-0 w-48"
+    >
+      <img
+        src={movie.poster_url || "/placeholder-poster.jpg"}
+        alt={movie.title}
+        className="w-full h-64 object-cover"
+      />
+      <div className="p-3">
+        <h3 className="text-sm font-semibold truncate mb-1 text-white">{movie.title}</h3>
+        <p className="text-yellow-400 text-xs">⭐ {movie.imdb_rating || "N/A"}</p>
+        {showBadge && (
+          <div className="mt-1">
+            <span className={`inline-block bg-${badgeColor}-600 text-white text-xs px-2 py-1 rounded-full`}>
+              {badgeText}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   if (!user) {
-    return null; // Should not happen when authenticated
+    return null;
   }
 
   if (loading) {
@@ -139,48 +180,109 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* Movie Count */}
-        <div className="mb-4">
-          <p className="text-gray-400 text-sm">
-            Showing {filteredMovies.length} {filteredMovies.length === 1 ? 'movie' : 'movies'} for {user.name}
-          </p>
-        </div>
+        {/* Content based on active tab */}
+        {activeTab === 'all' && (
+          <>
+            {/* Carousels Section - Only show in "All Movies" tab */}
+            {!carouselsLoading && Object.keys(carousels).length > 0 && (
+              <div className="space-y-8 mb-12">
+                {Object.entries(carousels).map(([key, carousel]) => (
+                  <div key={key} className="carousel-section">
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-xl font-bold text-white">{carousel.name}</h2>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => scrollCarousel(key, -1)}
+                          className="p-2 bg-gray-700 rounded-full hover:bg-gray-600 transition-colors"
+                        >
+                          <ChevronLeft size={20} className="text-white" />
+                        </button>
+                        <button
+                          onClick={() => scrollCarousel(key, 1)}
+                          className="p-2 bg-gray-700 rounded-full hover:bg-gray-600 transition-colors"
+                        >
+                          <ChevronRight size={20} className="text-white" />
+                        </button>
+                      </div>
+                    </div>
 
-        {/* Movie Grid */}
-        <div className="grid grid-cols-5 gap-6">
-          {filteredMovies.map((m) => (
-            <div
-              key={m.item_id || m.movie_id}
-              onClick={() => setSelected(m)}
-              className="cursor-pointer bg-gray-800 rounded-lg shadow-lg overflow-hidden hover:scale-105 transition-transform duration-200"
-            >
-              <img
-                src={m.poster_url || "/placeholder-poster.jpg"}
-                alt={m.title}
-                className="w-full h-72 object-cover"
-              />
-              <div className="p-3">
-                <h3 className="text-sm font-semibold truncate mb-1 text-white">{m.title}</h3>
-                <p className="text-yellow-400 text-xs">⭐ {m.imdb_rating || "N/A"}</p>
-                {activeTab === 'recommended' && (
-                  <div className="mt-1">
-                    <span className="inline-block bg-green-600 text-white text-xs px-2 py-1 rounded-full">
-                      Recommended
-                    </span>
+                    <div
+                      ref={el => carouselRefs.current[key] = el}
+                      className="flex space-x-4 overflow-x-auto scrollbar-hide scroll-smooth pb-4"
+                      style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                    >
+                      {carousel.movies.map((movie, index) => (
+                        <MovieCard
+                          key={`${key}-${movie.item_id || movie.movie_id}`}
+                          movie={movie}
+                        />
+                      ))}
+                    </div>
                   </div>
-                )}
-                {/* You can add user-specific indicators here based on user.id */}
-                {m.user_specific_data && (
-                  <div className="mt-1">
-                    <span className="inline-block bg-purple-600 text-white text-xs px-2 py-1 rounded-full">
-                      Personalized
-                    </span>
+                ))}
+              </div>
+            )}
+
+            {/* Carousels Loading State */}
+            {carouselsLoading && (
+              <div className="mb-12">
+                <div className="animate-pulse">
+                  <div className="h-6 bg-gray-700 rounded w-48 mb-4"></div>
+                  <div className="flex space-x-4">
+                    {[...Array(6)].map((_, i) => (
+                      <div key={i} className="w-48 h-80 bg-gray-700 rounded-lg"></div>
+                    ))}
                   </div>
-                )}
+                </div>
+              </div>
+            )}
+
+            {/* All Movies Section */}
+            <div className="mt-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-white">All Movies</h2>
+                <p className="text-gray-400 text-sm">
+                  Showing {filteredMovies.length} {filteredMovies.length === 1 ? 'movie' : 'movies'}
+                </p>
+              </div>
+
+              {/* Movie Grid */}
+              <div className="grid grid-cols-5 gap-6">
+                {filteredMovies.map((m) => (
+                  <MovieCard
+                    key={m.item_id || m.movie_id}
+                    movie={m}
+                  />
+                ))}
               </div>
             </div>
-          ))}
-        </div>
+          </>
+        )}
+
+        {activeTab === 'recommended' && (
+          /* AI Recommended Section - Only show in "Recommended" tab */
+          <div className="mt-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white">AI Recommended Movies</h2>
+              <p className="text-gray-400 text-sm">
+                Showing {filteredMovies.length} {filteredMovies.length === 1 ? 'movie' : 'movies'}
+              </p>
+            </div>
+
+            {/* Movie Grid for Recommendations */}
+            <div className="grid grid-cols-9">
+              {filteredMovies.map((m) => (
+                <MovieCard
+                  key={m.item_id || m.movie_id}
+                  movie={m}
+                  showBadge={true}
+                  badgeText="AI Recommended"
+                  badgeColor="green"
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Modal */}
         {selected && (
@@ -205,7 +307,6 @@ useEffect(() => {
                     <p><b>Director:</b> {selected.director || "Unknown"}</p>
                     <p><b>Genres:</b> {selected.genres || "Unknown"}</p>
                     <p><b>Year:</b> {selected.year || "Unknown"}</p>
-                    {/* User-specific data can be displayed here */}
                     {selected.user_rating && (
                       <p><b>Your Rating:</b> ⭐ {selected.user_rating}/10</p>
                     )}
@@ -222,6 +323,17 @@ useEffect(() => {
           </div>
         )}
       </div>
+
+      {/* Custom CSS for hiding scrollbar */}
+      <style jsx>{`
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
     </div>
   );
 }
